@@ -30,9 +30,24 @@ int userdat_cmp(const void *a, const void *b) {
 }
 
 int main() {
-	struct btree *tree = btree_new(sizeof(struct userdat),
+	struct userdat *retval;
+	struct btree *tree;
+	struct userdat jd = {"John Doe", 42, gender_male};
+
+	tree = btree_new(sizeof(struct userdat),
 	                               BTREE_DEGREE_DEFAULT,
 	                               &userdat_cmp);
+
+
+	btree_insert(tree, &jd);
+
+	retval = btree_search(tree, &jd);
+
+	if (retval != NULL) {
+		printf("Query: %s, age:%d, %c\n", retval->name, retval->age, (retval->gender == gender_male) ? 'M' : 'F' );
+	} else {
+		printf("Query: not found\n");
+	}
 
 	btree_free(tree);
 

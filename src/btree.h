@@ -21,23 +21,25 @@ struct btree;
  * This function just calls `btree_new_with_allocator` with `free` and `malloc`
  * as initializers.
  */
-struct btree *btree_new(size_t elem_size,
+struct btree* btree_new(size_t elem_size,
                         size_t t,
-                        int(*cmp)(const void *a, const void *b));
+                        int    (*cmp)(const void *a, const void *b));
 
 /* Same as `btree_new`, except that it actually initializes a btree, but with
  * the given allocators.
  */
-struct btree *btree_new_with_allocator(size_t elem_size,
+struct btree* btree_new_with_allocator(
+                        size_t elem_size,
                         size_t t,
-                        int(*cmp)(const void *a, const void *b),
-                        void *(*alloc)(size_t),
-                        void  (*dealloc)(void*));
+                        int    (*cmp)(const void *a, const void *b),
+                        void  *(*alloc)(size_t),
+                        void   (*dealloc)(void*));
 
 void btree_free(struct btree *btree);
 
-void *btree_search(struct btree *btree, void *elem);
-void *btree_insert(struct btree *btree, void *elem);
-void *btree_delete(struct btree *btree, void *elem);
+void* btree_search(struct btree *btree, void *elem);
+void* btree_insert(struct btree *btree, void *elem);
+void* btree_delete(struct btree *btree, void *elem);
+void* btree_update(struct btree *btree, void *elem_key, void *elem);
 
 #endif
