@@ -180,10 +180,10 @@ void btree_free(struct btree *btree) {
 	btree = NULL;
 }
 
-void* btree_insert(struct btree *btree, void *elem) {
+void btree_insert(struct btree *btree, void *elem) {
 	if (btree->root == NULL) {
-		btree->root = node_new(btree);
-		node_insert(btree->root, elem, btree->elem_size);
+		btree->root = node_new(btree->degree, btree->elem_size);
+		node_insert(btree->root, elem, btree->degree, btree->elem_size, btree->cmp);
 	}
 }
 

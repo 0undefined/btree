@@ -38,7 +38,7 @@ struct btree* btree_new_with_allocator(
 void btree_free(struct btree *btree);
 
 void* btree_search(struct btree *btree, void *elem);
-void* btree_insert(struct btree *btree, void *elem);
+void  btree_insert(struct btree *btree, void *elem);
 void* btree_delete(struct btree *btree, void *elem);
 void* btree_update(struct btree *btree, void *elem_key, void *elem);
 
