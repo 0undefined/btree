@@ -10,7 +10,7 @@ OBJ   :=$(addprefix obj/,$(notdir $(SRC:.c=.o)))
 test: debug
 	./$(OUT)
 
-gdb: debug
+gdb: debug src/btree.h
 	gdb -q -ex r $(OUT)
 
 debug: DEFS += -g3 -DDEBUG
@@ -21,7 +21,7 @@ build: $(OUT)
 $(OUT): $(OBJ)
 	$(CC) $(DEFS) $(FLAGS) $(LFLAGS) -o $(OUT) $(OBJ)
 
-obj/%.o: src/%.c
+obj/%.o: src/%.c src/btree.h
 	$(CC) $(DEFS) $(FLAGS) -c -o $@ $<
 
 obj:
