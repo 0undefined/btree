@@ -34,13 +34,13 @@ struct btree {
 
 /* `node_new` allocates a new leaf node, children should be added and allocated
  * when the node is no longer a leaf node */
-struct node* node_new(struct btree *tree) {
-	const size_t max_items = 2 * tree->degree - 1;
+struct node* node_new(const size_t degree, const size_t elem_size) {
+	const size_t max_items = 2 * degree - 1;
 	struct node *retval = malloc(sizeof(struct node));
 
 	retval->n        = 0;
 	retval->c        = 0;
-	retval->items    = calloc(max_items, sizeof(tree->elem_size));
+	retval->items    = calloc(max_items, sizeof(elem_size));
 	retval->children = NULL;
 
 	return retval;
@@ -50,8 +50,8 @@ struct node* node_new(struct btree *tree) {
  * for it.
  * returnvalue: `false` if we we're unable to allocate space for the new
  * children. */
-bool node_transition(struct btree *tree, struct node *node) {
-	const int max_children = 2 * tree->degree;
+bool node_transition(const size_t degree, const size_t elem_size, struct node *node) {
+	const int max_children = 2 * degree;
 	int c;
 	/* Allocate pointers for children */
 	node->children = calloc(max_children, sizeof(struct node*));
@@ -63,7 +63,7 @@ bool node_transition(struct btree *tree, struct node *node) {
 
 	/* Allocate children */
 	for (c = 0; c < max_children; c++) {
-		node->children[c] = node_new(tree);
+		node->children[c] = node_new(degree, elem_size);
 		if (node->children[c] == NULL) {
 			perror("could not allocate space for all children, freeing...");
 			for (c = c - 1;c >= 0; c--) {
@@ -93,7 +93,7 @@ void node_free(struct node *node, size_t elem_size, void (*dealloc)(void*)) {
 
 /* Node functionality */
 #define \
-node_leaf(node) (node->children)
+node_leaf(node) (node->children == NULL)
 
 #define \
 node_maxdegree(t) (2 * t - 1)
@@ -101,8 +101,62 @@ node_maxdegree(t) (2 * t - 1)
 #define \
 node_mindegree(t) (t - 1)
 
+#define \
+node_full(degree, t) (t->n == 2 * degree - 1)
+
 /* Split a child of `nonfull` of index `i` */
-node_tree_split_child(struct node *nonfull, size_t i) {}
+void node_tree_split_child(const size_t t, const size_t elem_size, struct node *nonfull, size_t i) {
+	struct node *z = node_new(t, elem_size);
+	struct node *y = nonfull->children[i];
+	size_t j;
+
+	printf("Splitting tree!\n");
+	__asm__("int3");
+
+	/* `z` should be a branching node if `y` is */
+	if (node_leaf(y)) {
+		node_transition(t, elem_size, z);
+	}
+
+	z->n = t - 1;
+
+	for (j = 0; j < t - 1; j++) {
+		const size_t offset_dst = elem_size * j;
+		const size_t offset_src = offset_dst + elem_size * t;
+		memcpy((z->items) + offset_dst, (y->items) + offset_src, elem_size);
+	}
+
+	if (!node_leaf(y)) {
+		for (j = 0; j < t; j++) {
+			z->children[j] = y->children[j + t];
+		}
+		y->c = t;
+		z->c = t;
+	}
+
+	y->n = t - 1;
+
+	for (j = nonfull->n + 1; j > i+1; j--) {
+		nonfull->children[j + 1] = nonfull->children[j];
+	}
+	nonfull->children[i+1] = z;
+
+	for (j = nonfull->n; j > i; j--) {
+		const size_t offset = j * elem_size;
+		memcpy((nonfull->items) + offset + elem_size,
+		       (nonfull->items) + offset,
+		        elem_size);
+	}
+
+	memcpy((nonfull->items) + i * elem_size,
+			(y->items) + elem_size * t,
+			elem_size);
+
+	nonfull->n++;
+
+	__asm__("int3");
+
+}
 
 /* `node_split` splits a _full_ node (c = 2t-1 items) into two nodes with t-1
  * items each.
@@ -120,12 +174,62 @@ struct node *node_split() {
 	return NULL;
 }
 
-int node_insert(struct node *node, void *elem, size_t elem_size) {
-	/* TODO: test to see if a node already contains elem */
-	/* TODO: balance the tree */
-	memcpy((node->items)+node->c*elem_size, elem, elem_size);
-	(node->n)++;
-	return 0;
+struct node* node_insert_nonfull(
+		struct node *root,
+		void *elem,
+		const size_t degree,
+		const size_t elem_size,
+		int (*cmp)(const void *a, const void *b)) {
+	/* TODO check correctness */
+	size_t i = root->n - 1;
+	if (node_leaf(root)) {
+		size_t offset = elem_size * i;
+		while (i >= 0 && cmp(elem, root->items + offset) == BTREE_CMP_LT) {
+			memcpy(root->items + offset + elem_size, root->items + offset, elem_size);
+
+			i--;
+			offset = elem_size * i;
+		}
+		offset = elem_size * (i++);
+		memcpy(root->items + offset, elem, elem_size);
+
+	} else {
+		size_t offset = elem_size * i;
+		while (i >= 0 && cmp(elem, root->items + offset) == BTREE_CMP_LT) {
+			i--;
+			offset = elem_size * i;
+		}
+		i++;
+		struct node *nextchild = root->children[i];
+		if (node_full(degree, nextchild)) {
+			/* TODO Check if the root has changed */
+			node_tree_split_child(degree, elem_size, root, i);
+			if (cmp(elem, root->items + elem_size * i) == BTREE_CMP_GT) {
+				nextchild = root->children[++i];
+			}
+		}
+		return node_insert_nonfull(nextchild, elem, degree, elem_size, cmp);
+	}
+}
+
+struct node* node_insert(
+		struct node *root,
+		void *elem,
+		const size_t degree,
+		const size_t elem_size,
+		int (*cmp)(const void *a, const void *b)) {
+	if (node_full(degree, root)) {
+		struct node *s = node_new(degree, elem_size);
+		node_transition(degree, elem_size, s);
+		s->children[s->c++] = root;
+		/* TODO Check if the root has changed */
+		node_tree_split_child(degree, elem_size, s, 0);
+		return node_insert_nonfull(s, elem, degree, elem_size, cmp);
+	}
+	else {
+		return node_insert_nonfull(root, elem, degree, elem_size, cmp);
+	}
+	return NULL;
 }
 
 void* node_search(struct node *x,
@@ -172,6 +276,8 @@ struct btree* btree_new_with_allocator(size_t elem_size,
 	new_tree->degree    = t;
 
 	new_tree->cmp       = cmp;
+
+	return new_tree;
 }
 
 void btree_free(struct btree *btree) {
