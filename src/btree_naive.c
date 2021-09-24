@@ -30,6 +30,19 @@ struct btree {
 	int (*cmp)(const void *a, const void *b);
 };
 
+/* Node functionality */
+#define \
+node_leaf(node) (node->children == NULL)
+
+#define \
+node_maxdegree(t) (2 * t - 1)
+
+#define \
+node_mindegree(t) (t - 1)
+
+#define \
+node_full(degree, t) (t->n == 2 * degree - 1)
+
 /* Node memory */
 
 /* `node_new` allocates a new leaf node, children should be added and allocated
@@ -86,23 +99,11 @@ void node_free(struct node *node, size_t elem_size, void (*dealloc)(void*)) {
 		node_free((node->children)[i], elem_size, dealloc);
 	}
 
-	dealloc(node->items);
+	if (!node_leaf(node))
+		dealloc(node->items);
 
 	free(node);
 }
-
-/* Node functionality */
-#define \
-node_leaf(node) (node->children == NULL)
-
-#define \
-node_maxdegree(t) (2 * t - 1)
-
-#define \
-node_mindegree(t) (t - 1)
-
-#define \
-node_full(degree, t) (t->n == 2 * degree - 1)
 
 /* Split a child of `nonfull` of index `i` */
 void node_tree_split_child(const size_t t, const size_t elem_size, struct node *nonfull, size_t i) {
