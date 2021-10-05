@@ -42,4 +42,6 @@ void  btree_insert(struct btree *btree, void *elem);
 void* btree_delete(struct btree *btree, void *elem);
 void* btree_update(struct btree *btree, void *elem_key, void *elem);
 
+void  btree_print(struct btree *btree, void (*print_elem)(const void*));
+
 #endif

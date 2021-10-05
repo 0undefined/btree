@@ -300,3 +300,38 @@ void* btree_search(struct btree *btree, void *elem) {
 
 void* btree_delete(struct btree *btree, void *elem) {}
 void* btree_update(struct btree *btree, void *elem_key, void *elem) {}
+
+
+void node_print(struct node *root, const size_t elem_size, const int indent, void (*print_elem)(const void*)) {
+	ssize_t i;
+	int t;
+
+	for (t = 0; t < indent - 1; t++) { fputs(" ┃ ", stdout); }
+	if (indent > 0) { fputs(" ┣┯", stdout); }
+	printf("printing node %p, c:%ld n:%ld\n", (void*)root, root->c, root->n);
+
+	if (node_leaf(root)) {
+		for (i = 0; i < root->n - 1; i++) {
+			const size_t ofst = i * elem_size;
+			for (t = 0; t < indent; t++) { fputs(" ┃├", stdout); }
+			print_elem(root->items + ofst);
+		}
+		for (t = 0; t < indent; t++) { fputs(" ┃└", stdout); }
+		print_elem(root->items + i * elem_size);
+	} else {
+		size_t ofst = 0;
+		for (i = 0; i < root->c - 1; i++) {
+			node_print(root->children[i], elem_size, indent + 1, print_elem);
+			for (t = 0; t < indent; t++) { fputs(" ┃ ", stdout); }
+			print_elem(root->items + ofst);
+			ofst += elem_size;
+		}
+		node_print(root->children[i], elem_size, indent + 1, print_elem);
+	}
+
+}
+
+void btree_print(struct btree *btree, void (*print_elem)(const void*)) {
+	printf("BTRee: degree:%ld\n", btree->degree);
+	node_print(btree->root, btree->elem_size, 0, print_elem);
+}
