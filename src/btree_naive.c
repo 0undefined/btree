@@ -51,15 +51,12 @@ node_full(degree, t) (t->n >= 2 * degree - 1)
  * when the node is no longer a leaf node */
 struct node* node_new(const ssize_t degree, const size_t elem_size) {
 	const size_t max_items = 2 * degree;
-	struct node *retval = malloc(sizeof(struct node));
+	struct node *retval = calloc(1, sizeof(struct node));
 
-	printf("Allocating node with %ld bytes: max_items:%ld elem_size:%ld\n", max_items * elem_size, max_items, elem_size);
-	retval->n        = 0;
-	retval->c        = 0;
+	retval->n = 0;
+	retval->c = 0;
 	retval->items    = calloc(max_items, elem_size);
 	retval->children = NULL;
-
-	printf("Item address: %p\n", (void*)retval->items);
 
 	return retval;
 }
@@ -92,8 +89,6 @@ bool node_transition(const ssize_t degree, const size_t elem_size, struct node *
 		}
 	}
 
-	/* node->c = c; */
-
 	return true;
 }
 
@@ -110,18 +105,28 @@ void node_free(struct node *node, size_t elem_size, void (*dealloc)(void*)) {
 	node->items = NULL;
 
 	free(node);
+	node = NULL;
 }
 
-/* Split a child of `nonfull` of index `i` */
+
+/* `node_tree_split_child` splits a _full_ node (c = 2t-1 items) into two nodes
+ * with t-1 items each.
+ * The median key/item/element moves up to the original nodes parent, to signify
+ * the split.  If the parent is full too, we need to split it before inserting
+ * the median key.
+ * This can potentially split full nodes all the way up throughout the tree. */
+/* Instead of waiting to find out wether we should split the nodes, we split the
+ * full nodes we encounter on the way down, including the leafs themselves.
+ * By doing this, we are assured that whenever we split a node, its parent has
+ * room for the median key. */
 void node_tree_split_child(
 		const size_t t,
 		const size_t elem_size,
 		struct node *nonfull,
-		size_t i) {
+		ssize_t i) {
 	struct node *z = node_new(t, elem_size);
 	struct node *y = nonfull->children[i];
-	size_t j;
-	const ssize_t min_elem = (t-1 <= 2) ? 2 : t-1;
+	ssize_t j;
 
 	/* `z` should be a branching node if `y` is */
 	if (!node_leaf(y)) {
@@ -130,14 +135,17 @@ void node_tree_split_child(
 
 	z->n = t - 1;
 
-	for (j = 0; j < min_elem; j++) {
+	/* Move last `t-1` items to new node `z` */
+	for (j = 0; j < t-1; j++) {
 		const size_t offset_dst = elem_size * j;
-		const size_t offset_src = offset_dst + elem_size * t;
+		const size_t offset_src = elem_size * (t+j);
 		memcpy((z->items) + offset_dst, (y->items) + offset_src, elem_size);
 	}
+	/* Set unused item-memory to zero? */
 
+	/* Move children t..2t, if applicable*/
 	if (!node_leaf(y)) {
-		for (j = 0; j < t; j++) {
+		for (j = 0; j < t+1; j++) {
 			z->children[j] = y->children[j + t];
 		}
 		y->c = t;
@@ -146,37 +154,30 @@ void node_tree_split_child(
 
 	y->n = t - 1;
 
-	for (j = nonfull->n + 1; j > i+1; j--) {
-		nonfull->children[j + 1] = nonfull->children[j];
+	/* Move children +1 */
+	for (j = nonfull->n; j > i; j--) {
+		nonfull->children[j+1] = nonfull->children[j];
 	}
+
+	/* new child */
 	nonfull->children[i+1] = z;
 	nonfull->c++;
 
-	for (j = nonfull->n; j > i; j--) {
+	/* moving keys i..n */
+	for (j = nonfull->n; j >= i; j--) {
 		const size_t offset = j * elem_size;
 		memcpy((nonfull->items) + offset + elem_size,
 		       (nonfull->items) + offset,
 		        elem_size);
 	}
 
+	/* Lastly, copy the median element to nonfull-parent*/
 	memcpy((nonfull->items) + i * elem_size,
-			(y->items) + elem_size * (t-1),
-			elem_size);
+	       (y->items)       + (t-1) * elem_size,
+	       elem_size);
 
 	nonfull->n++;
 }
-
-/* `node_split` splits a _full_ node (c = 2t-1 items) into two nodes with t-1
- * items each.
- * The median key/item/element moves up to the original nodes parent, to signify
- * the split.
- * If the parent is full too, we need to split it before inserting the median
- * key.
- * This can potentially split full nodes all the way up throughout the tree. */
-/* Instead of waiting to find out wether we should split the nodes, we split the
- * full nodes we encounter on the way down, including the leafs themselves.
- * By doing this, we are assured that whenever we split a node, its parent has
- * room for the median key. */
 struct node *node_split() {
 	/* TODO implement */
 	return NULL;
@@ -193,7 +194,7 @@ struct node* node_insert_nonfull(
 	ssize_t i = root->n - 1;
 	if (node_leaf(root)) {
 		size_t offset = elem_size * i;
-		while (i >= 0 && cmp(elem, root->items + offset) == BTREE_CMP_LT) {
+		while (i >= 0 && cmp(elem, root->items + offset) < 0) {
 			memcpy(root->items + offset + elem_size, root->items + offset, elem_size);
 
 			i--;
@@ -206,7 +207,7 @@ struct node* node_insert_nonfull(
 	} else {
 		size_t offset = elem_size * i;
 		struct node *nextchild = NULL;
-		while (i >= 0 && cmp(elem, root->items + offset) == BTREE_CMP_LT) {
+		while (i >= 0 && cmp(elem, root->items + offset) < 0) {
 			i--;
 			offset = elem_size * i;
 		}
@@ -215,7 +216,7 @@ struct node* node_insert_nonfull(
 		if (node_full(degree, nextchild)) {
 			/* TODO Check if the root has changed */
 			node_tree_split_child(degree, elem_size, root, i);
-			if (cmp(elem, root->items + elem_size * i) == BTREE_CMP_GT) {
+			if (cmp(elem, root->items + elem_size * i) > 0) {
 				nextchild = root->children[++i];
 			}
 		}
@@ -252,15 +253,18 @@ void* node_search(struct node *x,
                   void *key,
                   int(*cmp)(const void *a, const void *b),
                   const size_t elem_size) {
-	ssize_t i           = 0;
-	int    last_cmp_res = cmp(key, (const void*)x->items);
+	/* We set to one, since we pre-emptively do a comparison with the assumption
+	 * that there's already one in the items */
+	ssize_t i = 0;
+	int    last_cmp_res;
 
-	while (i < x->n && last_cmp_res > 0) {
+	while (i < x->n
+	   &&  (last_cmp_res = cmp(key, (const void*)(x->items + (i * elem_size))))
+	      > 0) {
 		i++;
-		last_cmp_res = cmp(key, (const void*)(x->items + (i * elem_size)));
 	}
 
-	if ((ssize_t)i < x->n && last_cmp_res == BTREE_CMP_EQ) {
+	if ((ssize_t)i < x->n && last_cmp_res == 0) {
 		return (void*)(x->items + (i * elem_size));
 	} else if (node_leaf(x)) {
 		return NULL;
@@ -326,7 +330,7 @@ void node_print(struct node *root, const size_t elem_size, const int indent, voi
 
 	for (t = 0; t < indent - 1; t++) { fputs(" ┃ ", stdout); }
 	if (indent > 0) { fputs(" ┣┯", stdout); }
-	printf("printing node %p, c:%ld n:%ld\n", (void*)root, root->c, root->n);
+	printf("printing node \x1b[33m%0lx\x1b[0m, c:%ld n:%ld\t\t\x1b[30m%p\x1b[0m\n", (size_t)root % 0x10000, root->c, root->n, (void*)root);
 
 	if (node_leaf(root)) {
 		for (i = 0; i < root->n - 1; i++) {
