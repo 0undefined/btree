@@ -21,7 +21,7 @@ build: $(OUT)
 $(OUT): $(OBJ)
 	$(CC) $(DEFS) $(FLAGS) $(LFLAGS) -o $(OUT) $(OBJ)
 
-obj/%.o: src/%.c src/btree.h
+obj/%.o: src/%.c src/btree.h obj
 	$(CC) $(DEFS) $(FLAGS) -c -o $@ $<
 
 obj:
