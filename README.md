@@ -21,3 +21,26 @@ todo
 ## Usage
 
 todo
+
+
+# Progress
+
+## Naive
+
+* [x] Searching
+* [x] Insertion
+* [ ] Deletion
+
+
+## Flat-sequential
+
+* [ ] Searching
+* [ ] Insertion
+* [ ] Deletion
+
+
+## Parallel
+
+* [ ] Searching
+* [ ] Insertion
+* [ ] Deletion
