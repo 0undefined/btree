@@ -11,8 +11,8 @@
 typedef unsigned char byte;
 
 struct node {
-	ssize_t       n; /* number of items/keys/elements */
-	ssize_t       c; /* number of children */
+	ssize_t      n; /* number of items/keys/elements */
+	ssize_t      c; /* number of children */
 	byte        *items;
 	struct node **children;
 };
@@ -136,6 +136,7 @@ void node_tree_split_child(
 	z->n = t - 1;
 
 	/* Move last `t-1` items to new node `z` */
+	/* TODO This can be done with one memcpy */
 	for (j = 0; j < t-1; j++) {
 		const size_t offset_dst = elem_size * j;
 		const size_t offset_src = elem_size * (t+j);
@@ -164,6 +165,7 @@ void node_tree_split_child(
 	nonfull->c++;
 
 	/* moving keys i..n */
+	/* TODO This can be done with one memcpy */
 	for (j = nonfull->n; j >= i; j--) {
 		const size_t offset = j * elem_size;
 		memcpy((nonfull->items) + offset + elem_size,
@@ -195,7 +197,10 @@ struct node* node_insert_nonfull(
 	if (node_leaf(root)) {
 		size_t offset = elem_size * i;
 		while (i >= 0 && cmp(elem, root->items + offset) < 0) {
-			memcpy(root->items + offset + elem_size, root->items + offset, elem_size);
+			/* TODO This can be done with one memcpy */
+			memcpy(root->items + offset + elem_size,
+			       root->items + offset,
+			       elem_size);
 
 			i--;
 			offset = elem_size * i;
@@ -309,10 +314,18 @@ void btree_free(struct btree *btree) {
 void btree_insert(struct btree *btree, void *elem) {
 	if (btree->root == NULL) {
 		btree->root = node_new(btree->degree, btree->elem_size);
-		node_insert(btree->root, elem, btree->degree, btree->elem_size, btree->cmp);
+		node_insert(btree->root,
+		            elem,
+		            btree->degree,
+		            btree->elem_size,
+		            btree->cmp);
 	}
 	else {
-		btree->root = node_insert(btree->root, elem, btree->degree, btree->elem_size, btree->cmp);
+		btree->root = node_insert(btree->root,
+		                          elem,
+		                          btree->degree,
+		                          btree->elem_size,
+		                          btree->cmp);
 	}
 }
 
@@ -330,7 +343,13 @@ void node_print(struct node *root, const size_t elem_size, const int indent, voi
 
 	for (t = 0; t < indent - 1; t++) { fputs(" ┃ ", stdout); }
 	if (indent > 0) { fputs(" ┣┯", stdout); }
-	printf("printing node \x1b[33m%0lx\x1b[0m, c:%ld n:%ld\t\t\x1b[30m%p\x1b[0m\n", (size_t)root % 0x10000, root->c, root->n, (void*)root);
+	printf("printing node \x1b[33m%0lx\x1b[0m,"
+	       " c:%ld n:%ld\t\t"
+	       "\x1b[30m%p\x1b[0m\n",
+	       (size_t)root % 0x10000,
+	       root->c,
+	       root->n,
+	       (void*)root);
 
 	if (node_leaf(root)) {
 		for (i = 0; i < root->n - 1; i++) {
