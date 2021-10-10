@@ -32,7 +32,9 @@ struct btree {
 	int (*cmp)(const void *a, const void *b);
 };
 
+/**********************/
 /* Node functionality */
+/**********************/
 #define \
 node_leaf(node) (node->children == NULL)
 
@@ -180,10 +182,6 @@ void node_tree_split_child(
 
 	nonfull->n++;
 }
-struct node *node_split() {
-	/* TODO implement */
-	return NULL;
-}
 
 /* return: Returns the new root, if a split happens */
 struct node* node_insert_nonfull(
@@ -280,7 +278,9 @@ void* node_search(struct node *x,
 }
 
 
+/***********************/
 /* Btree functionality */
+/***********************/
 struct btree* btree_new(size_t elem_size,
                         size_t t,
                         int(*cmp)(const void *a, const void *b)) {
