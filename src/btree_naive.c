@@ -67,7 +67,7 @@ struct node* node_new(const ssize_t degree, const size_t elem_size) {
  * for it.
  * returnvalue: `false` if we we're unable to allocate space for the new
  * children. */
-bool node_transition(const ssize_t degree, const size_t elem_size, struct node *node) {
+bool node_transition(struct node *node, const ssize_t degree, const size_t elem_size) {
 	const int max_children = 2 * degree + 1;
 	int c;
 	/* Allocate pointers for children */
@@ -122,7 +122,7 @@ void node_free(struct node *node, size_t elem_size, void (*dealloc)(void*)) {
  * By doing this, we are assured that whenever we split a node, its parent has
  * room for the median key. */
 void node_tree_split_child(
-		const size_t t,
+		const ssize_t t,
 		const size_t elem_size,
 		struct node *nonfull,
 		ssize_t i) {
@@ -132,7 +132,7 @@ void node_tree_split_child(
 
 	/* `z` should be a branching node if `y` is */
 	if (!node_leaf(y)) {
-		node_transition(t, elem_size, z);
+		node_transition(z, t, elem_size);
 	}
 
 	z->n = t - 1;
@@ -166,7 +166,7 @@ void node_tree_split_child(
 	nonfull->children[i+1] = z;
 	nonfull->c++;
 
-	/* moving keys i..n */
+	/* moving keys i..n + 1*/
 	/* TODO This can be done with one memcpy */
 	for (j = nonfull->n; j >= i; j--) {
 		const size_t offset = j * elem_size;
@@ -181,6 +181,129 @@ void node_tree_split_child(
 	       elem_size);
 
 	nonfull->n++;
+}
+
+/* `node_child_merge`: Merges two children around the key at index `i` (k)
+ * by appending k to the left child (y) followed by
+ * appending the right child (z) to y
+ *
+ * `x`: The parent node of y and z
+ * `i`: Index of the item that acts as the new median of the merged node
+ *
+ * WARNING: THIS FUNCTION ASSUMES THAT `i` IS A VALID INDEX
+ */
+void node_child_merge(
+		struct node *x,
+		ssize_t i,
+		const ssize_t t,
+		const size_t elem_size) {
+	struct node* y = x->children[i  ];
+	struct node* z = x->children[i+1];
+	int j = 0;
+
+	/* append k to y */
+	memcpy(y->items + (elem_size * y->n++),
+	       x->items + (elem_size * i),
+	       elem_size);
+	x->n--;
+
+	/* append keys in z to y */
+	memcpy(y->items + (elem_size * y->n),
+	       z->items,
+	       elem_size * z->n);
+	y->n += z->n;
+
+	/* Move children from z to y */
+	for (j = 0; j < z->c; j++) {
+		y->children[j+y->c++] = z->children[j];
+	}
+
+	/* Remove z from x */
+	for (j = i+1; j < x->c; j++) {
+		x->children[j] = x->children[j+1];
+	}
+	x->c--;
+
+	free(z); /* DO NOT USE THE RECURSIVE ONE AS CHILDREN WILL BE LOST!!! */
+}
+
+/* ASSUME i < x->c */
+void node_shift_left(
+		struct node *x,
+		ssize_t i,
+		const ssize_t t,
+		const size_t elem_size) {
+	struct node* y = x->children[i  ];
+	struct node* z = x->children[i+1];
+	const byte *x_k = x->items + (elem_size * i);
+	long unsigned j = 0;
+
+	/* Append x.k[i] to y */
+	memcpy(y->items + (elem_size * y->n++),
+	       x_k,
+	       elem_size);
+
+	/* Move first element of z to x.k[i] */
+	memcpy(x_k,
+	       z->items,
+	       elem_size);
+
+	/* Shift z's items left */
+	memmove(z->items,
+	        z->items + elem_size,
+	        elem_size * (z->n - 1));
+
+	if (!node_leaf(z)) {
+		/* append first child of z to y */
+		y->children[y->c++] = z->children[0];
+
+		/* Shift z's children left */
+		for (j = 0; j < z->c; j++) {
+			z->children[j] = z->children[j+1];
+		}
+		z->c--;
+	}
+
+	z->n--;
+}
+
+void node_shift_right(
+		struct node *x,
+		ssize_t i,
+		const ssize_t t,
+		const size_t elem_size) {
+	struct node* y = x->children[i  ];
+	struct node* z = x->children[i+1];
+	const byte *x_k = x->items + (elem_size * i);
+	long unsigned j = 0;
+
+	/* Shift z's items right */
+	memmove(z->items + elem_size,
+	        z->items,
+	        elem_size * (z->n - 1));
+
+	/* Append x.k[i] to z */
+	memcpy(z->items,
+	       x_k,
+	       elem_size);
+
+	/* Move last element of y to x.k[i] */
+	memcpy(x_k,
+	       y->items + (elem_size * --(y->n)),
+	       elem_size);
+
+	if (!node_leaf(z)) {
+		/* Shift z's children right */
+		for (j = z->c; j > 0; j--) {
+			z->children[j] = z->children[j-1];
+		}
+		z->c++;
+
+		/* prepend last child of y to z */
+		z->children[0] = y->children[--(y->c)];
+	}
+
+	z->n++;
 }
 
 /* return: Returns the new root, if a split happens */
@@ -240,7 +363,7 @@ struct node* node_insert(
 
 	if (node_full(degree, root)) {
 		s = node_new(degree, elem_size);
-		node_transition(degree, elem_size, s);
+		node_transition(s, degree, elem_size);
 		s->children[s->c++] = root;
 		/* TODO Check if the root has changed */
 		node_tree_split_child(degree, elem_size, s, 0);
@@ -275,6 +398,104 @@ void* node_search(struct node *x,
 
 	/* Assumption: ¬node_leaf(x) → x.children is allocated */
 	return node_search(x->children[i], key, cmp, elem_size);
+}
+
+int node_delete(struct node *x,
+                void *key,
+                int(*cmp)(const void *a, const void *b),
+                const ssize_t degree,
+                const size_t elem_size) {
+	/* Determine wether the key is in the node */
+	int i = 0; /* Index of `k`, if found */
+	int last_cmp_res;
+
+	while (i < x->n
+	   && (last_cmp_res = cmp(key, (const void*)(x->items + (i * elem_size))))
+	      > 0) {
+		i++;
+	}
+
+	if (last_cmp_res == 0) {
+		if (node_leaf(x)) {
+			/* 1. k ϵ x &&  node_leaf(x) */
+			/* Delete k from x */
+			int j = i;
+			while (j < x->n) {
+				const size_t offset_dst = elem_size * j;
+				const size_t offset_src = elem_size * (j+1);
+				memcpy((x->items) + offset_dst,
+				       (x->items) + offset_src,
+				       elem_size);
+				j++;
+			}
+			x->n--;
+			return 1;
+		} else {
+			/* 2. k ϵ x && !node_leaf(x) */
+			/* let i be the index of k in x */
+			/* 2a: if size(child[i]) >= t; find the largest k' in child[i] */
+			/* replace k with k' */
+			if (x->children[i]->n >= degree) {
+				struct node* y = x->children[i];
+
+				memcpy( x->items  + (elem_size * i),
+				       (y->items) + (elem_size * --(y->n)),
+				       elem_size);
+				return 1;
+
+			} else if (x->children[i+1]->n >= degree) {
+				struct node* z = x->children[i+1];
+
+				memcpy(x->items + (elem_size * i),
+				       z->items,
+				       elem_size);
+
+				/* Move the items -1*/
+				memmove(z->items,
+				        z->items + elem_size,
+				        elem_size * (z->n - 1));
+				z->n--;
+
+				return 1;
+			} else {
+				node_child_merge(x, i, degree, elem_size);
+				/* recurse */
+
+				return node_delete(x->children[i], key, cmp, degree, elem_size);
+			}
+		}
+	} else {
+		/* 3. !(k ϵ x) */
+		struct node* y;
+		int ii; /* index of x.c[i] */
+
+		/* Determine x.c[i] that must contain k */
+		/* if last cmp < 0, then the child must be in the left child of x.items[i]*/
+		if (last_cmp_res < 0) ii = i;
+		/* Otherwise, it must be the very last child */
+		else                  ii = i+1;
+
+		y = x->children[ii];
+
+		if (y->n < degree) {
+			/* we are left biased */
+			if        (ii > 0        && x->children[ii-1]->n >= degree) {
+				node_shift_right(x, ii-1, degree, elem_size);
+
+			} else if (ii < x->c - 1 && x->children[ii+1]->n >= degree) {
+				node_shift_left (x, ii,   degree, elem_size);
+
+			} else {
+				/* We need to determine wether we merge left or right, if possible */
+				if (ii > 0) node_child_merge(x, ii - 1, degree, elem_size);
+				else        node_child_merge(x, ii,     degree, elem_size);
+			}
+
+		}
+
+		return node_delete(y, key, cmp, degree, elem_size);
+	}
+	return 0;
 }
 
 
@@ -333,7 +554,18 @@ void* btree_search(struct btree *btree, void *elem) {
 	return node_search(btree->root, elem, btree->cmp, btree->elem_size);
 }
 
-void* btree_delete(struct btree *btree, void *elem) {}
+int btree_delete(struct btree *btree, void *elem) {
+	struct node *newroot = btree->root;
+	int res = node_delete(btree->root, elem, btree->cmp, btree->degree, btree->elem_size);
+	if (newroot->n == 0) {
+		/* shrink the tree */
+		struct node *newroot_p = newroot->children[0];
+		free(newroot);
+		btree->root = newroot_p;
+	}
+	return res;
+}
+
 void* btree_update(struct btree *btree, void *elem_key, void *elem) {}
 
 
