@@ -26,6 +26,15 @@ void userfind(struct btree* tree, char a) {
 	}
 }
 
+void test_case(struct btree *tree, char num, char *case_num, char elem) {
+	printf("\x1b[1;33m(%c) case %s: \x1b[3;33m%c\x1b[0;1;33m deleted\x1b[0m\n",
+			num,
+			case_num,
+			elem);
+	btree_delete(tree, &elem);
+	btree_print(tree, &print);
+}
+
 int main() {
 	struct btree *tree = btree_new(sizeof(char), 3, &cmp);
 
@@ -70,8 +79,14 @@ int main() {
 	btree_insert(tree, &"L");
 
 
+	printf("\x1b[1;33m(a) Initial tree\x1b[0m\n");
 	btree_print(tree, &print);
 
+	test_case(tree, 'b', "1", 'F');
+	test_case(tree, 'c', "2a", 'M');
+	test_case(tree, 'd', "2c", 'G');
+	test_case(tree, 'e', "3b", 'D');
+	test_case(tree, 'f', "3a", 'B');
 
 
 	btree_free(tree);
