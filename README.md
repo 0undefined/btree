@@ -29,7 +29,7 @@ todo
 
 * [x] Searching
 * [x] Insertion
-* [ ] Deletion
+* [x] Deletion
 
 
 ## Flat-sequential
