@@ -24,10 +24,7 @@ int userdat_cmp(const void *a, const void *b) {
 	const struct userdat_map *ua = a;
 	const struct userdat_map *ub = b;
 
-	if (ua->id == ub->id) return BTREE_CMP_EQ;
-	else if (ua->id < ub->id) return BTREE_CMP_LT;
-
-	return BTREE_CMP_GT;
+	return ua->id - ub->id;
 }
 
 void userprint(const void *a) {
@@ -80,7 +77,7 @@ int main() {
 	USER( 14,  np,  n,  71, gender_male,   "Luke skywalker");
 
 	tree = btree_new(sizeof(struct userdat_map),
-	                               2, /*BTREE_DEGREE_DEFAULT / 2,*/
+	                               6, /*BTREE_DEGREE_DEFAULT / 2,*/
 	                               &userdat_cmp);
 
 	btree_insert((struct btree*)tree, ap);
@@ -89,8 +86,10 @@ int main() {
 	btree_insert((struct btree*)tree, dp);
 	btree_insert((struct btree*)tree, ep);
 	btree_insert((struct btree*)tree, fp);
+
 	btree_insert((struct btree*)tree, gp);
 	btree_insert((struct btree*)tree, hp);
+
 	btree_insert((struct btree*)tree, ip);
 	btree_insert((struct btree*)tree, jp);
 	btree_insert((struct btree*)tree, kp);
@@ -98,11 +97,41 @@ int main() {
 	btree_insert((struct btree*)tree, mp);
 	btree_insert((struct btree*)tree, np);
 
-	userfind(tree, ap);
-	userfind(tree, ep);
-	userfind(tree, np);
+	/*userfind(tree, ap);*/
+	/*userfind(tree, bp);*/
+	/*userfind(tree, ep);*/
+	/*userfind(tree, np);*/
+	btree_print(tree, &userprint);
 
-	printf("Tree:\n");
+	printf("Deleting %s\n", cp->user->name);
+	btree_delete(tree, cp);
+
+	btree_print(tree, &userprint);
+
+	printf("Deleting %s\n", dp->user->name);
+	btree_delete(tree, dp);
+
+	btree_print(tree, &userprint);
+
+	printf("Deleting [%d] %s\n", dp->id, dp->user->name);
+	btree_delete(tree, dp);
+
+	printf("Deleting [%d] %s\n", hp->id, hp->user->name);
+	btree_delete(tree, hp);
+
+	btree_print(tree, &userprint);
+
+	printf("Deleting [%d] %s\n", ip->id, ip->user->name);
+	btree_delete(tree, ip);
+
+	btree_print(tree, &userprint);
+
+	/* deleting node */
+	btree_delete(tree, bp);
+	btree_print(tree, &userprint);
+	userfind(tree, bp);
+
+	btree_insert((struct btree*)tree, bp);
 	btree_print(tree, &userprint);
 
 	btree_free(tree);
