@@ -286,9 +286,9 @@ void node_shift_right(
 	/* Shift z's items right */
 	memmove(z->items + elem_size,
 	        z->items,
-	        elem_size * (z->n - 1));
+	        elem_size * z->n);
 
-	/* Append x.k[i] to z */
+	/* Prepend x.k[i] to z */
 	memcpy(z->items,
 	       x_k,
 	       elem_size);
@@ -427,7 +427,7 @@ int node_delete(struct node *x,
 			/* 1. k ϵ x && node_leaf(x) */
 			/* Delete k from x */
 			int j = i;
-			while (j < x->n) {
+			while (j + 1 < x->n) {
 				const size_t offset_dst = elem_size * j;
 				const size_t offset_src = elem_size * (j+1);
 				memcpy((x->items) + offset_dst,
@@ -516,7 +516,8 @@ int node_delete(struct node *x,
 		/* if last cmp < 0, then the child must be in the left child of x.items[i]*/
 		if (last_cmp_res < 0) ii = i;
 		/* Otherwise, it must be the very last child */
-		else                  ii = i+1;
+		else if (i < x->n) ii = i+1;
+		else ii = i;
 
 		y = x->children[ii];
 
