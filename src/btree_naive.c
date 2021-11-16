@@ -205,7 +205,6 @@ void node_child_merge(
 	memcpy(y->items + (elem_size * y->n++),
 	       x->items + (elem_size * i),
 	       elem_size);
-	x->n--;
 
 	/* append keys in z to y */
 	memcpy(y->items + (elem_size * y->n),
@@ -224,6 +223,13 @@ void node_child_merge(
 	}
 	x->c--;
 
+	/* remove k from x */
+	/* TODO check if we need to use (x->n - 1 - i) instead */
+	memmove(x->items + (elem_size * i),
+	        x->items + (elem_size * (i+1)),
+	        elem_size * (x->n - i));
+	x->n--;
+
 	free(z); /* DO NOT USE THE RECURSIVE ONE AS CHILDREN WILL BE LOST!!! */
 }
 
@@ -235,7 +241,7 @@ void node_shift_left(
 		const size_t elem_size) {
 	struct node* y = x->children[i  ];
 	struct node* z = x->children[i+1];
-	const byte *x_k = x->items + (elem_size * i);
+	byte *x_k = x->items + (elem_size * i);
 	long unsigned j = 0;
 
 	/* Append x.k[i] to y */
@@ -274,7 +280,7 @@ void node_shift_right(
 		const size_t elem_size) {
 	struct node* y = x->children[i  ];
 	struct node* z = x->children[i+1];
-	const byte *x_k = x->items + (elem_size * i);
+	byte *x_k = x->items + (elem_size * i);
 	long unsigned j = 0;
 
 	/* Shift z's items right */
@@ -416,8 +422,9 @@ int node_delete(struct node *x,
 	}
 
 	if (last_cmp_res == 0) {
+
 		if (node_leaf(x)) {
-			/* 1. k ϵ x &&  node_leaf(x) */
+			/* 1. k ϵ x && node_leaf(x) */
 			/* Delete k from x */
 			int j = i;
 			while (j < x->n) {
@@ -437,35 +444,71 @@ int node_delete(struct node *x,
 			/* replace k with k' */
 			if (x->children[i]->n >= degree) {
 				struct node* y = x->children[i];
+				byte *kk = malloc(elem_size);
 
-				memcpy( x->items  + (elem_size * i),
-				       (y->items) + (elem_size * --(y->n)),
+				/* Find the predecessor, k' of k in y */
+				{
+					struct node* tmp = y->children[y->n-1];
+					while (!node_leaf(tmp)) {
+						tmp = tmp->children[tmp->n-1];
+					}
+
+					/* copy kk */
+					memcpy(kk, tmp->items + elem_size * (tmp->n - 1), elem_size);
+				}
+
+				/* Recursively delete kk from y */
+				node_delete(y, kk, cmp, degree, elem_size);
+
+				/* replace k with kk */
+				memcpy(x->items  + (elem_size * i),
+				       kk,
 				       elem_size);
+
+				free(kk);
+
 				return 1;
 
 			} else if (x->children[i+1]->n >= degree) {
 				struct node* z = x->children[i+1];
+				byte *kk = malloc(elem_size);
 
+				/* Find the successor, k' of k in z */
+				{
+					struct node* tmp = z->children[0];
+					while (!node_leaf(tmp)) {
+						tmp = tmp->children[0];
+					}
+
+					/* copy kk */
+					memcpy(kk, tmp->items + elem_size * (tmp->n - 1), elem_size);
+				}
+
+				/* Recursively delete kk from y */
+				node_delete(z, kk, cmp, degree, elem_size);
+
+				/* replace k with kk */
 				memcpy(x->items + (elem_size * i),
-				       z->items,
+				       kk,
 				       elem_size);
 
-				/* Move the items -1*/
-				memmove(z->items,
-				        z->items + elem_size,
-				        elem_size * (z->n - 1));
-				z->n--;
+				free(kk);
 
 				return 1;
 			} else {
+				/* Merge k and z into y */
 				node_child_merge(x, i, degree, elem_size);
-				/* recurse */
 
+				/* recurse */
 				return node_delete(x->children[i], key, cmp, degree, elem_size);
 			}
 		}
 	} else {
 		/* 3. !(k ϵ x) */
+
+		/*  if x is a leaf, then it is not in the tree */
+		if (node_leaf(x)) return 0;
+
 		struct node* y;
 		int ii; /* index of x.c[i] */
 
