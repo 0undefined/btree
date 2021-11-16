@@ -449,7 +449,7 @@ int node_delete(struct node *x,
 
 				/* Find the predecessor, k' of k in y */
 				{
-					struct node* tmp = y->children[y->n-1];
+					struct node* tmp = y;
 					while (!node_leaf(tmp)) {
 						tmp = tmp->children[tmp->n-1];
 					}
