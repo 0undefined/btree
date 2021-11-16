@@ -195,7 +195,6 @@ void node_tree_split_child(
 void node_child_merge(
 		struct node *x,
 		ssize_t i,
-		const ssize_t t,
 		const size_t elem_size) {
 	struct node* y = x->children[i  ];
 	struct node* z = x->children[i+1];
@@ -238,12 +237,11 @@ void node_child_merge(
 void node_shift_left(
 		struct node *x,
 		ssize_t i,
-		const ssize_t t,
 		const size_t elem_size) {
 	struct node* y = x->children[i  ];
 	struct node* z = x->children[i+1];
 	byte *x_k = x->items + (elem_size * i);
-	long unsigned j = 0;
+	ssize_t j = 0;
 
 	/* Append x.k[i] to y */
 	memcpy(y->items + (elem_size * y->n++),
@@ -277,7 +275,6 @@ void node_shift_left(
 void node_shift_right(
 		struct node *x,
 		ssize_t i,
-		const ssize_t t,
 		const size_t elem_size) {
 	struct node* y = x->children[i  ];
 	struct node* z = x->children[i+1];
@@ -459,7 +456,7 @@ int node_delete(struct node *x,
 				}
 
 				/* Recursively delete kk from y */
-				node_delete(y, kk, cmp, degree, elem_size);
+				return node_delete(y, kk, cmp, degree, elem_size);
 
 				/* replace k with kk */
 				memcpy(x->items  + (elem_size * i),
@@ -486,7 +483,7 @@ int node_delete(struct node *x,
 				}
 
 				/* Recursively delete kk from y */
-				node_delete(z, kk, cmp, degree, elem_size);
+				return node_delete(z, kk, cmp, degree, elem_size);
 
 				/* replace k with kk */
 				memcpy(x->items + (elem_size * i),
@@ -498,17 +495,18 @@ int node_delete(struct node *x,
 				return 1;
 			} else {
 				/* Merge k and z into y */
-				node_child_merge(x, i, degree, elem_size);
+				node_child_merge(x, i, elem_size);
 
 				/* recurse */
 				return node_delete(x->children[i], key, cmp, degree, elem_size);
 			}
 		}
+	} else if (node_leaf(x)) {
+		return 0;
 	} else {
 		/* 3. !(k ϵ x) */
 
 		/*  if x is a leaf, then it is not in the tree */
-		if (node_leaf(x)) return 0;
 
 		struct node* y;
 		int ii; /* index of x.c[i] */
@@ -525,19 +523,19 @@ int node_delete(struct node *x,
 		if (y->n < degree) {
 			/* we are left biased */
 			if        (ii > 0        && x->children[ii-1]->n >= degree) {
-				node_shift_right(x, ii-1, degree, elem_size);
+				node_shift_right(x, ii-1, elem_size);
 
 			} else if (ii < x->c - 1 && x->children[ii+1]->n >= degree) {
-				node_shift_left (x, ii,   degree, elem_size);
+				node_shift_left (x, ii,   elem_size);
 
 			} else {
 				/* We need to determine wether we merge left or right, if possible */
 				if (ii > 0)             {
-					node_child_merge(x, ii - 1, degree, elem_size);
+					node_child_merge(x, ii - 1, elem_size);
 					y = x->children[ii - 1];
 				}
 				else if (ii < x->c - 1) {
-					node_child_merge(x, ii,     degree, elem_size);
+					node_child_merge(x, ii,     elem_size);
 				}
 				else {
 					perror("Cannot merge!");
@@ -618,9 +616,6 @@ int btree_delete(struct btree *btree, void *elem) {
 	}
 	return res;
 }
-
-void* btree_update(struct btree *btree, void *elem_key, void *elem) {}
-
 
 void node_print(struct node *root, const size_t elem_size, const int indent, void (*print_elem)(const void*)) {
 	ssize_t i;
