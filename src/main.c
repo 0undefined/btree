@@ -12,7 +12,7 @@ int cmp(const void *a, const void *b) {
 
 void print(const void *a) {
 	const char* ap = a;
-	printf("'%c'\n", (char)*ap, *ap);
+	printf("'%c'\n", (char)*ap);
 }
 
 void userfind(struct btree* tree, char a) {
