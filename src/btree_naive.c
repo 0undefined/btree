@@ -214,8 +214,9 @@ void node_child_merge(
 
 	/* Move children from z to y */
 	for (j = 0; j < z->c; j++) {
-		y->children[j+y->c++] = z->children[j];
+		y->children[j+y->c] = z->children[j];
 	}
+	y->c += z->c;
 
 	/* Remove z from x */
 	for (j = i+1; j < x->c; j++) {
@@ -531,8 +532,16 @@ int node_delete(struct node *x,
 
 			} else {
 				/* We need to determine wether we merge left or right, if possible */
-				if (ii > 0) node_child_merge(x, ii - 1, degree, elem_size);
-				else        node_child_merge(x, ii,     degree, elem_size);
+				if (ii > 0)             {
+					node_child_merge(x, ii - 1, degree, elem_size);
+					y = x->children[ii - 1];
+				}
+				else if (ii < x->c - 1) {
+					node_child_merge(x, ii,     degree, elem_size);
+				}
+				else {
+					perror("Cannot merge!");
+				}
 			}
 
 		}
