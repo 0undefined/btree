@@ -727,8 +727,11 @@ void* btree_iter(struct btree *tree) {
 	if (tree != NULL) {
 		head = 0;
 		memset(stack, 0, 512 * sizeof(struct node*));
+
 		btree = tree;
-		stack[head] = (struct stack){0, btree->root};
+
+		stack[head].pos  = 0;
+		stack[head].node = btree->root;
 	}
 
 	/* Check if we have reached the end of a node.
