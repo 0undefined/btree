@@ -716,7 +716,7 @@ size_t btree_size(struct btree *btree) {
 	return u32_pow(2 * btree->degree, btree_height(btree)) - 1;
 }
 
-void* btree_iter_next(struct btree *tree) {
+void* btree_iter(struct btree *tree) {
 	static size_t head;
 	static struct btree *btree;
 	static struct stack{
