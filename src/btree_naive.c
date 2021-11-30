@@ -660,8 +660,9 @@ void btree_print(struct btree *btree, void (*print_elem)(const void*)) {
 }
 
 void* btree_first(struct btree *btree) {
+	struct node *root;
 	if (btree == NULL) return NULL;
-	struct node *root = btree->root;
+	root = btree->root;
 
 	if (root == NULL) return NULL;
 
@@ -672,8 +673,10 @@ void* btree_first(struct btree *btree) {
 }
 
 void* btree_last(struct btree *btree) {
+	struct node *root;
+
 	if (btree == NULL) return NULL;
-	struct node *root = btree->root;
+	root = btree->root;
 
 	if (root == NULL) return NULL;
 
@@ -684,9 +687,11 @@ void* btree_last(struct btree *btree) {
 }
 
 size_t btree_height(struct btree *btree) {
-	if (btree == NULL) return 0;
-	struct node *root = btree->root;
+	struct node *root;
 	size_t height = 0;
+
+	if (btree == NULL) return 0;
+	root = btree->root;
 
 	if (root == NULL) return 0;
 
@@ -709,4 +714,74 @@ size_t u32_pow(size_t base, size_t exponent) {
 
 size_t btree_size(struct btree *btree) {
 	return u32_pow(2 * btree->degree, btree_height(btree)) - 1;
+}
+
+void* btree_iter_next(struct btree *tree) {
+	static size_t head;
+	static struct btree *btree;
+	static struct stack{
+		int pos;
+		struct node* node;
+	} stack[512];
+	size_t i;
+
+	if (tree != NULL) {
+		head = 0;
+		memset(stack, 0, 512 * sizeof(struct node*));
+		btree = tree;
+		stack[head] = (struct stack){0, btree->root};
+	}
+
+	/* Check if we have reached the end of a node.
+	 * Take note of the difference of inequality in the if statement and
+	 * following while */
+	/* Leafs are a special case */
+	if (node_leaf(stack[head].node) && stack[head].pos >= 2 * stack[head].node->n) { /* +1 ?? */
+		if (head == 0) return NULL;
+
+		/* Pop, if so */
+		stack[head].pos = 0;
+		stack[head].node = NULL;
+		head--;
+		stack[head].pos++;
+	}
+	/* Leafs are a special case */
+	while (stack[head].pos > 2 * stack[head].node->n) { /* +1 ?? */
+		if (head == 0) return NULL;
+
+		/* Pop, if so */
+		stack[head].pos = 0;
+		stack[head].node = NULL;
+		head--;
+		stack[head].pos++;
+	}
+
+	/* On evens, we decent into children */
+	if (!node_leaf(stack[head].node)) {
+		if (stack[head].pos % 2 == 0) {
+			/* push child node onto stack */
+			stack[head + 1].pos  = 0;
+			stack[head + 1].node = stack[head].node->children[stack[head].pos / 2];
+			head++;
+
+			/* Decent all the way to the left, if pos == 0 */
+			while (!node_leaf(stack[head].node)) {
+				stack[head + 1].pos  = 0;
+				stack[head + 1].node = stack[head].node->children[0];
+				head++;
+			}
+		}
+	}
+
+	/* Finally, update index and return a value */
+	if (node_leaf(stack[head].node)) {
+		stack[head].pos += 2;
+	}
+	else {
+		stack[head].pos++;
+	}
+
+	return stack[head].node->items + btree->elem_size * ((stack[head].pos - 1) / 2);
+
+	return NULL;
 }

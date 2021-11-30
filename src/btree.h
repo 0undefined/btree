@@ -48,4 +48,6 @@ void* btree_last(struct btree *btree);
 
 size_t btree_size(struct btree *btree);
 
+void* btree_iter_next(struct btree *tree);
+
 #endif
