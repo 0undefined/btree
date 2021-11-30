@@ -723,7 +723,6 @@ void* btree_iter_next(struct btree *tree) {
 		int pos;
 		struct node* node;
 	} stack[512];
-	size_t i;
 
 	if (tree != NULL) {
 		head = 0;
