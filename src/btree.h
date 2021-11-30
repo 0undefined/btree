@@ -43,4 +43,9 @@ int   btree_delete(struct btree *btree, void *elem);
 
 void  btree_print(struct btree *btree, void (*print_elem)(const void*));
 
+void* btree_first(struct btree *btree);
+void* btree_last(struct btree *btree);
+
+size_t btree_size(struct btree *btree);
+
 #endif

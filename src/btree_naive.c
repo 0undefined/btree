@@ -572,6 +572,8 @@ struct btree* btree_new_with_allocator(size_t elem_size,
 	new_tree->elem_size = elem_size;
 	new_tree->degree    = t;
 
+	new_tree->root      = NULL;
+
 	new_tree->cmp       = cmp;
 
 	return new_tree;
@@ -655,4 +657,56 @@ void node_print(struct node *root, const size_t elem_size, const int indent, voi
 void btree_print(struct btree *btree, void (*print_elem)(const void*)) {
 	printf("BTRee: degree:%ld\n", btree->degree);
 	node_print(btree->root, btree->elem_size, 0, print_elem);
+}
+
+void* btree_first(struct btree *btree) {
+	if (btree == NULL) return NULL;
+	struct node *root = btree->root;
+
+	if (root == NULL) return NULL;
+
+	while (!node_leaf(root)) root = root->children[0];
+
+	if (root->n == 0) return NULL;
+	return root->items; /* Return first element */
+}
+
+void* btree_last(struct btree *btree) {
+	if (btree == NULL) return NULL;
+	struct node *root = btree->root;
+
+	if (root == NULL) return NULL;
+
+	while (!node_leaf(root)) root = root->children[root->c];
+
+	if (root->n == 0) return NULL;
+	return root->items + btree->elem_size * (root->n - 1); /* Return first element */
+}
+
+size_t btree_height(struct btree *btree) {
+	if (btree == NULL) return 0;
+	struct node *root = btree->root;
+	size_t height = 0;
+
+	if (root == NULL) return 0;
+
+	while (!node_leaf(root)) {
+		root = root->children[root->c];
+		height++;
+	}
+
+	return height;
+}
+
+size_t u32_pow(size_t base, size_t exponent) {
+	size_t res = 1;
+	while (exponent > 0) {
+		res *= base;
+		exponent--;
+	}
+	return res;
+}
+
+size_t btree_size(struct btree *btree) {
+	return u32_pow(2 * btree->degree, btree_height(btree)) - 1;
 }
