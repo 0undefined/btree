@@ -51,6 +51,8 @@ int main() {
 		while ((a = btree_iter(tree, it)) != NULL && limit++ < 35) {
 			print_int(a);
 		}
+
 	}
+
 	return 0;
 }
