@@ -44,10 +44,10 @@ int main() {
 
 	{
 		int limit = 0;
-		int *a = btree_iter_next(tree);
+		int *a = btree_iter(tree);
 		while (a != NULL && limit++ < 35) {
 			print_int(a);
-			a = btree_iter_next(NULL);
+			a = btree_iter(NULL);
 		}
 	}
 	return 0;
