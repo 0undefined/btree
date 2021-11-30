@@ -81,7 +81,6 @@ int main() {
 	                               &userdat_cmp);
 
 	btree_insert((struct btree*)tree, ap);
-	btree_insert((struct btree*)tree, bp);
 	btree_insert((struct btree*)tree, cp);
 	btree_insert((struct btree*)tree, dp);
 	btree_insert((struct btree*)tree, ep);
@@ -97,40 +96,13 @@ int main() {
 	btree_insert((struct btree*)tree, mp);
 	btree_insert((struct btree*)tree, np);
 
-	/*userfind(tree, ap);*/
-	/*userfind(tree, bp);*/
-	/*userfind(tree, ep);*/
-	/*userfind(tree, np);*/
 	btree_print(tree, &userprint);
-
-	printf("Deleting %s\n", cp->user->name);
+	printf("\nDeleting %s\n", cp->user->name);
 	btree_delete(tree, cp);
 
 	btree_print(tree, &userprint);
 
-	printf("Deleting %s\n", dp->user->name);
-	btree_delete(tree, dp);
-
-	btree_print(tree, &userprint);
-
-	printf("Deleting [%d] %s\n", dp->id, dp->user->name);
-	btree_delete(tree, dp);
-
-	printf("Deleting [%d] %s\n", hp->id, hp->user->name);
-	btree_delete(tree, hp);
-
-	btree_print(tree, &userprint);
-
-	printf("Deleting [%d] %s\n", ip->id, ip->user->name);
-	btree_delete(tree, ip);
-
-	btree_print(tree, &userprint);
-
-	/* deleting node */
-	btree_delete(tree, bp);
-	btree_print(tree, &userprint);
-	userfind(tree, bp);
-
+	printf("\nInserting %s\n", bp->user->name);
 	btree_insert((struct btree*)tree, bp);
 	btree_print(tree, &userprint);
 
