@@ -13,6 +13,7 @@
 #define BTREE_CMP_GT        (  1 )
 
 struct btree;
+struct btree_iter_t;
 
 /* elem_size: the size of the elements, typically `sizeof(struct <your struct>)`
  * t: degree of the btree, if you're in doubt, use `BTREE_SIZE_DEFAULT`
@@ -48,6 +49,7 @@ void* btree_last(struct btree *btree);
 
 size_t btree_size(struct btree *btree);
 
-void* btree_iter(struct btree *tree);
+struct btree_iter_t * btree_iter_t_new(struct btree *tree);
+void* btree_iter(struct btree *tree, struct btree_iter_t *iter);
 
 #endif

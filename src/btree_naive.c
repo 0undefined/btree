@@ -32,6 +32,16 @@ struct btree {
 	int (*cmp)(const void *a, const void *b);
 };
 
+struct btree_iter_t {
+	size_t head;
+	struct stack{
+		int pos;
+		struct node* node;
+	} stack[512];
+	/* This heavily relies on the assumption that a tree never grows deeper than
+	 * 512 nodes */
+};
+
 /**********************/
 /* Node functionality */
 /**********************/
@@ -712,78 +722,106 @@ size_t u32_pow(size_t base, size_t exponent) {
 	return res;
 }
 
+
 size_t btree_size(struct btree *btree) {
 	return u32_pow(2 * btree->degree, btree_height(btree)) - 1;
 }
 
-void* btree_iter(struct btree *tree) {
-	static size_t head;
-	static struct btree *btree;
-	static struct stack{
-		int pos;
-		struct node* node;
-	} stack[512];
+
+struct btree_iter_t * btree_iter_t_new(struct btree *tree) {
+	struct btree_iter_t *iter = NULL;
+	iter = (struct btree_iter_t*)malloc(sizeof(struct btree_iter_t*));
 
 	if (tree != NULL) {
-		head = 0;
-		memset(stack, 0, 512 * sizeof(struct node*));
+		iter->head = 0;
+		memset(iter->stack, 0, 512 * sizeof(struct node*));
 
-		btree = tree;
-
-		stack[head].pos  = 0;
-		stack[head].node = btree->root;
+		iter->stack[iter->head].pos  = 0;
+		iter->stack[iter->head].node = tree->root;
+	} else {
+		perror("Cannot instantiate iterator from null-pointer tree");
 	}
+	return iter;
+}
+
+
+void* btree_iter(struct btree *tree, struct btree_iter_t *iter) {
+	register int     pos;
+	register ssize_t head;
+	register ssize_t n;
+
+	head = iter->head;
+	pos  = iter->stack[head].pos;
+	n    = iter->stack[head].node->n;
 
 	/* Check if we have reached the end of a node.
 	 * Take note of the difference of inequality in the if statement and
 	 * following while */
 	/* Leafs are a special case */
-	if (node_leaf(stack[head].node) && stack[head].pos >= 2 * stack[head].node->n) { /* +1 ?? */
+	if (node_leaf(iter->stack[iter->head].node) && pos >= 2 * n) { /* +1 ?? */
 		if (head == 0) return NULL;
 
-		/* Pop, if so */
-		stack[head].pos = 0;
-		stack[head].node = NULL;
-		head--;
-		stack[head].pos++;
+		{ /* Pop, if so */
+			iter->stack[head].pos  = 0;
+			iter->stack[head].node = NULL;
+			iter->head--; head--;
+			iter->stack[head].pos++;
+
+			pos = iter->stack[head].pos;
+			n   = iter->stack[head].node->n;
+		}
 	}
 	/* Leafs are a special case */
-	while (stack[head].pos > 2 * stack[head].node->n) { /* +1 ?? */
+	while (pos > 2 * n) { /* +1 ?? */
 		if (head == 0) return NULL;
 
-		/* Pop, if so */
-		stack[head].pos = 0;
-		stack[head].node = NULL;
-		head--;
-		stack[head].pos++;
+		{ /* Pop, if so */
+			iter->stack[head].pos  = 0;
+			iter->stack[head].node = NULL;
+			iter->head--; head--;
+			iter->stack[head].pos++;
+
+			pos = iter->stack[head].pos;
+			n   = iter->stack[head].node->n;
+		}
 	}
 
 	/* On evens, we decent into children */
-	if (!node_leaf(stack[head].node)) {
-		if (stack[head].pos % 2 == 0) {
-			/* push child node onto stack */
-			stack[head + 1].pos  = 0;
-			stack[head + 1].node = stack[head].node->children[stack[head].pos / 2];
-			head++;
+	if (!node_leaf(iter->stack[head].node)) {
+		if (pos % 2 == 0) {
+			{ /* push child node onto iter->stack */
+				iter->stack[head + 1].pos  = 0;
+				iter->stack[head + 1].node = iter->stack[head].node->children[pos / 2];
+				iter->head++; head++;
+
+				pos  = iter->stack[head].pos;
+				n    = iter->stack[head].node->n;
+			}
 
 			/* Decent all the way to the left, if pos == 0 */
-			while (!node_leaf(stack[head].node)) {
-				stack[head + 1].pos  = 0;
-				stack[head + 1].node = stack[head].node->children[0];
-				head++;
+			while (!node_leaf(iter->stack[iter->head].node)) {
+				iter->stack[head + 1].pos  = 0;
+				iter->stack[head + 1].node = iter->stack[head].node->children[0];
+				iter->head++; head++;
+
+				pos  = iter->stack[head].pos;
+				n    = iter->stack[head].node->n;
 			}
 		}
 	}
 
 	/* Finally, update index and return a value */
-	if (node_leaf(stack[head].node)) {
-		stack[head].pos += 2;
+	if (node_leaf(iter->stack[head].node)) {
+		iter->stack[head].pos += 2;
+		pos  = iter->stack[head].pos;
 	}
 	else {
-		stack[head].pos++;
+		iter->stack[head].pos++;
+		pos  = iter->stack[head].pos;
 	}
 
-	return stack[head].node->items + btree->elem_size * ((stack[head].pos - 1) / 2);
+	return iter->stack[head].node->items
+		 + tree->elem_size * ( (pos - 1) / 2 );
 
 	return NULL;
 }
