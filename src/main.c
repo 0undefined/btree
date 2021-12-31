@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "btree.h"
 
@@ -43,11 +44,12 @@ int main() {
 	printf("\niter:\n");
 
 	{
+		struct btree_iter_t *it = btree_iter_t_new(tree);
+		int *a    = NULL;
 		int limit = 0;
-		int *a = btree_iter(tree);
-		while (a != NULL && limit++ < 35) {
+
+		while ((a = btree_iter(tree, it)) != NULL && limit++ < 35) {
 			print_int(a);
-			a = btree_iter(NULL);
 		}
 	}
 	return 0;
