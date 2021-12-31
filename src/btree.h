@@ -49,7 +49,7 @@ void* btree_last(struct btree *btree);
 
 size_t btree_size(struct btree *btree);
 
-struct btree_iter_t * btree_iter_t_new(struct btree *tree);
+struct btree_iter_t* btree_iter_t_new(struct btree *tree);
 void* btree_iter(struct btree *tree, struct btree_iter_t *iter);
 
 #endif

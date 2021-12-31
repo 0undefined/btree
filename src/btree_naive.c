@@ -728,7 +728,7 @@ size_t btree_size(struct btree *btree) {
 }
 
 
-struct btree_iter_t * btree_iter_t_new(struct btree *tree) {
+struct btree_iter_t* btree_iter_t_new(struct btree *tree) {
 	struct btree_iter_t *iter = NULL;
 	iter = (struct btree_iter_t*)malloc(sizeof(struct btree_iter_t*));
 
@@ -754,37 +754,38 @@ void* btree_iter(struct btree *tree, struct btree_iter_t *iter) {
 	pos  = iter->stack[head].pos;
 	n    = iter->stack[head].node->n;
 
+#define BTREE_ITER_POP(it) {         \
+	iter->stack[head].pos  = 0;      \
+	iter->stack[head].node = NULL;   \
+	iter->head--; head--;            \
+	iter->stack[head].pos++;         \
+	                                 \
+	pos = iter->stack[head].pos;     \
+	n   = iter->stack[head].node->n; \
+}
+
 	/* Check if we have reached the end of a node.
 	 * Take note of the difference of inequality in the if statement and
 	 * following while */
-	/* Leafs are a special case */
-	if (node_leaf(iter->stack[iter->head].node) && pos >= 2 * n) { /* +1 ?? */
+
+	/* Leafs are a special case, as, if the only node is the root node, we might
+	 * want to exit */
+	if (node_leaf(iter->stack[iter->head].node) && pos >= 2 * n) {
 		if (head == 0) return NULL;
 
-		{ /* Pop, if so */
-			iter->stack[head].pos  = 0;
-			iter->stack[head].node = NULL;
-			iter->head--; head--;
-			iter->stack[head].pos++;
-
-			pos = iter->stack[head].pos;
-			n   = iter->stack[head].node->n;
-		}
+		/* Pop, if so */
+		else BTREE_ITER_POP(iter);
 	}
-	/* Leafs are a special case */
-	while (pos > 2 * n) { /* +1 ?? */
+
+	/* Otherwise, pop while we have reached the end of a node */
+	while (pos > 2 * n) {
 		if (head == 0) return NULL;
 
-		{ /* Pop, if so */
-			iter->stack[head].pos  = 0;
-			iter->stack[head].node = NULL;
-			iter->head--; head--;
-			iter->stack[head].pos++;
-
-			pos = iter->stack[head].pos;
-			n   = iter->stack[head].node->n;
-		}
+		/* Pop, if so */
+		else BTREE_ITER_POP(iter);
 	}
+
+#undef BTREE_ITER_POP
 
 	/* On evens, we decent into children */
 	if (!node_leaf(iter->stack[head].node)) {
