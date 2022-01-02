@@ -14,8 +14,9 @@ void print_int(const void *a) {
 
 int main() {
 	struct btree *tree = btree_new(sizeof(int), 3, &cmp_int);
+	int counter = 0;
 
-#define ADD(v) {int a = v;  btree_insert(tree, &a);}
+#define ADD(v) {int _ = v;  btree_insert(tree, &_);}
 	ADD(1);
 	ADD(2);
 	ADD(3);
@@ -39,20 +40,50 @@ int main() {
 	ADD(21);
 	ADD(22);
 	ADD(23);
+#undef ADD
 
+#ifdef DEBUG
 	btree_print(tree, &print_int);
 	printf("\niter:\n");
+#endif
 
 	{
 		struct btree_iter_t *it = btree_iter_t_new(tree);
-		int *a    = NULL;
-		int limit = 0;
+		int *a = NULL;
 
-		while ((a = btree_iter(tree, it)) != NULL && limit++ < 35) {
+
+#ifdef DEBUG
+		printf("Size: %lu\n\n", btree_size(tree));
+#endif
+
+		while ((a = btree_iter(tree, it)) != NULL && counter++ < 35) {
+#ifdef DEBUG
 			print_int(a);
+#endif
 		}
 
+#ifdef DEBUG
+		btree_print(tree, &print_int);
+		printf("Size: %lu\n\n", btree_size(tree));
+#endif
+
+		{
+			int _x = 24;
+			int _y = 25;
+			int _z = 26;
+			btree_insert(tree, &_x);
+			btree_insert(tree, &_y);
+			btree_insert(tree, &_z);
+		}
+
+		btree_iter_t_reset(tree, &it);
+
+		while ((a = btree_iter(tree, it)) != NULL && counter++ < 55) {
+#ifdef DEBUG
+			print_int(a);
+#endif
+		}
 	}
 
-	return 0;
+	return !(counter == 49);
 }
