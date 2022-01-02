@@ -36,20 +36,22 @@ struct btree* btree_new_with_allocator(
                         void  *(*alloc)(size_t),
                         void   (*dealloc)(void*));
 
-void btree_free(struct btree *btree);
+void   btree_free(struct btree *btree);
 
-void* btree_search(struct btree *btree, void *elem);
-void  btree_insert(struct btree *btree, void *elem);
-int   btree_delete(struct btree *btree, void *elem);
+void*  btree_search(struct btree *btree, void *elem);
+void   btree_insert(struct btree *btree, void *elem);
+int    btree_delete(struct btree *btree, void *elem);
 
-void  btree_print(struct btree *btree, void (*print_elem)(const void*));
+void   btree_print(struct btree *btree, void (*print_elem)(const void*));
 
-void* btree_first(struct btree *btree);
-void* btree_last(struct btree *btree);
+void*  btree_first(struct btree *btree);
+void*  btree_last(struct btree *btree);
 
 size_t btree_size(struct btree *btree);
 
-struct btree_iter_t* btree_iter_t_new(struct btree *tree);
-void* btree_iter(struct btree *tree, struct btree_iter_t *iter);
+struct btree_iter_t* btree_iter_t_new(struct btree* tree);
+void                 btree_iter_t_reset(struct btree *tree, struct btree_iter_t** it);
+
+void*  btree_iter(struct btree *tree, struct btree_iter_t *iter);
 
 #endif

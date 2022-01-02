@@ -730,7 +730,7 @@ size_t btree_size(struct btree *btree) {
 
 struct btree_iter_t* btree_iter_t_new(struct btree *tree) {
 	struct btree_iter_t *iter = NULL;
-	iter = (struct btree_iter_t*)malloc(sizeof(struct btree_iter_t*));
+	iter = (struct btree_iter_t*)malloc(sizeof(struct btree_iter_t));
 
 	if (tree != NULL) {
 		iter->head = 0;
@@ -742,6 +742,14 @@ struct btree_iter_t* btree_iter_t_new(struct btree *tree) {
 		perror("Cannot instantiate iterator from null-pointer tree");
 	}
 	return iter;
+}
+
+
+void btree_iter_t_reset(struct btree *tree, struct btree_iter_t** it) {
+	(*it)->head = 0;
+
+	(*it)->stack[0].pos  = 0;
+	(*it)->stack[0].node = tree->root;
 }
 
 
