@@ -73,13 +73,19 @@ struct node* node_new(const ssize_t degree, const size_t elem_size) {
 	return retval;
 }
 
-/* `node_transition` turns a leaf node into a non-leaf and allocates children
- * for it.
+/* `node_transition` turns a leaf node into a non-leaf. Children are not
+ * allocated.
  * returnvalue: `false` if we we're unable to allocate space for the new
  * children. */
 bool node_transition(struct node *node, const ssize_t degree, const size_t elem_size) {
 	const int max_children = 2 * degree + 1;
 	int c;
+
+	if (!node_leaf(node)) {
+		perror("node_transition was called on an already non-leaf node?");
+		return false;
+	}
+
 	/* Allocate pointers for children */
 	node->children = calloc(max_children, sizeof(struct node*));
 
@@ -90,15 +96,7 @@ bool node_transition(struct node *node, const ssize_t degree, const size_t elem_
 
 	/* Allocate children */
 	for (c = 0; c < max_children; c++) {
-		node->children[c] = node_new(degree, elem_size);
-		if (node->children[c] == NULL) {
-			perror("could not allocate space for all children, freeing...");
-			for (c = c - 1;c >= 0; c--) {
-				free(node->children[c]);
-			}
-			free(node->children);
-			return false;
-		}
+		node->children[c] = NULL;
 	}
 
 	return true;
@@ -107,10 +105,12 @@ bool node_transition(struct node *node, const ssize_t degree, const size_t elem_
 void node_free(struct node *node, size_t elem_size, void (*dealloc)(void*)) {
 	ssize_t i;
 	if (node == NULL) return;
+
 	if (!node_leaf(node)) {
 		for (i = 0; i < node->c; i++) {
-			node_free((node->children)[i], elem_size, dealloc);
+			node_free(node->children[i], elem_size, dealloc);
 		}
+		free(node->children);
 	}
 
 	dealloc(node->items);
@@ -706,7 +706,7 @@ size_t btree_height(struct btree *btree) {
 	if (root == NULL) return 0;
 
 	while (!node_leaf(root)) {
-		root = root->children[root->c];
+		root = root->children[0];
 		height++;
 	}
 
