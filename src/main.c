@@ -83,7 +83,10 @@ int main() {
 			print_int(a);
 #endif
 		}
+		free(it);
 	}
+
+	btree_free(tree);
 
 	return !(counter == 49);
 }
