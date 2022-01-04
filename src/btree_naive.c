@@ -77,7 +77,7 @@ struct node* node_new(const ssize_t degree, const size_t elem_size) {
  * allocated.
  * returnvalue: `false` if we we're unable to allocate space for the new
  * children. */
-bool node_transition(struct node *node, const ssize_t degree, const size_t elem_size) {
+bool node_transition(struct node *node, const ssize_t degree) {
 	const int max_children = 2 * degree + 1;
 	int c;
 
@@ -142,7 +142,7 @@ void node_tree_split_child(
 
 	/* `z` should be a branching node if `y` is */
 	if (!node_leaf(y)) {
-		node_transition(z, t, elem_size);
+		node_transition(z, t);
 	}
 
 	z->n = t - 1;
@@ -377,7 +377,7 @@ struct node* node_insert(
 
 	if (node_full(degree, root)) {
 		s = node_new(degree, elem_size);
-		node_transition(s, degree, elem_size);
+		node_transition(s, degree);
 		s->children[s->c++] = root;
 		/* TODO Check if the root has changed */
 		node_tree_split_child(degree, elem_size, s, 0);
