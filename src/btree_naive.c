@@ -758,6 +758,8 @@ void* btree_iter(struct btree *tree, struct btree_iter_t *iter) {
 	register ssize_t head;
 	register ssize_t n;
 
+	if (iter->stack[head].node == NULL) return NULL;
+
 	head = iter->head;
 	pos  = iter->stack[head].pos;
 	n    = iter->stack[head].node->n;
