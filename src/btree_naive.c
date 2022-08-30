@@ -321,14 +321,16 @@ void node_shift_right(
 }
 
 /* return: Returns the new root, if a split happens */
-struct node* node_insert_nonfull(
+void node_insert_nonfull(
 		struct node *root,
 		void *elem,
 		const ssize_t degree,
 		const size_t elem_size,
 		int (*cmp)(const void *a, const void *b)) {
+
 	/* TODO check correctness */
 	ssize_t i = root->n - 1;
+
 	if (node_leaf(root)) {
 		size_t offset = elem_size * i;
 		while (i >= 0 && cmp(elem, root->items + offset) < 0) {
@@ -360,9 +362,8 @@ struct node* node_insert_nonfull(
 				nextchild = root->children[++i];
 			}
 		}
-		return node_insert_nonfull(nextchild, elem, degree, elem_size, cmp);
+		node_insert_nonfull(nextchild, elem, degree, elem_size, cmp);
 	}
-	return NULL; /* TODO: Fix return value */
 }
 
 /* Returns the new root, if a split occurs */
@@ -601,11 +602,11 @@ void btree_free(struct btree **btree) {
 
 void btree_insert(struct btree *btree, void *elem) {
 	if (btree == NULL) {
-		fputs("Warning: Inserting into a NULL ptr!\n", stderr);
+		fputs("BTree error: Inserting into a NULL ptr!\n", stderr);
 		return;
 	}
 	if (elem == NULL) {
-		fputs("Warning: Inserting NULL into a tree!\n", stderr);
+		fputs("BTree error: Inserting NULL into a tree!\n", stderr);
 		return;
 	}
 	if (btree->root == NULL) {
