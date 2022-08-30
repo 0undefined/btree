@@ -602,11 +602,11 @@ void btree_free(struct btree **btree) {
 
 void btree_insert(struct btree *btree, void *elem) {
 	if (btree == NULL) {
-		fputs("Warning: Inserting into a NULL ptr!\n", stderr);
+		fputs("BTree error: Inserting into a NULL ptr!\n", stderr);
 		return;
 	}
 	if (elem == NULL) {
-		fputs("Warning: Inserting NULL into a tree!\n", stderr);
+		fputs("BTree error: Inserting NULL into a tree!\n", stderr);
 		return;
 	}
 	if (btree->root == NULL) {
