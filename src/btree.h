@@ -36,7 +36,7 @@ struct btree* btree_new_with_allocator(
                         void  *(*alloc)(size_t),
                         void   (*dealloc)(void*));
 
-void   btree_free(struct btree *btree);
+void   btree_free(struct btree **btree);
 
 void*  btree_search(struct btree *btree, void *elem);
 void   btree_insert(struct btree *btree, void *elem);
