@@ -133,7 +133,7 @@ int main() {
 	}
 
 	btree_print(tree, &userprint_name);
-	btree_free(tree);
+	btree_free(&tree);
 
 	return 0;
 }
