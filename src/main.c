@@ -89,7 +89,7 @@ int main() {
 	test_case(tree, 'f', "3a", 'B');
 
 
-	btree_free(tree);
+	btree_free(&tree);
 
 	return 0;
 }
