@@ -34,7 +34,7 @@ struct btree {
 
 struct btree_iter_t {
 	size_t head;
-	struct stack{
+	struct stack {
 		int pos;
 		struct node* node;
 	} stack[512];
@@ -77,7 +77,7 @@ struct node* node_new(const ssize_t degree, const size_t elem_size) {
  * allocated.
  * returnvalue: `false` if we we're unable to allocate space for the new
  * children. */
-bool node_transition(struct node *node, const ssize_t degree, const size_t elem_size) {
+bool node_transition(struct node *node, const ssize_t degree) {
 	const int max_children = 2 * degree + 1;
 	int c;
 
@@ -102,22 +102,22 @@ bool node_transition(struct node *node, const ssize_t degree, const size_t elem_
 	return true;
 }
 
-void node_free(struct node *node, size_t elem_size, void (*dealloc)(void*)) {
-	ssize_t i;
-	if (node == NULL) return;
+void node_free(struct node **node, size_t elem_size, void (*dealloc)(void*)) {
+	if (*node == NULL) return;
 
-	if (!node_leaf(node)) {
-		for (i = 0; i < node->c; i++) {
-			node_free(node->children[i], elem_size, dealloc);
+	if (!node_leaf((*node))) {
+		ssize_t i;
+		for (i = 0; i < (*node)->c; i++) {
+			node_free(&((*node)->children[i]), elem_size, dealloc);
 		}
-		free(node->children);
+		free((*node)->children);
 	}
 
-	dealloc(node->items);
-	node->items = NULL;
+	dealloc((*node)->items);
+	(*node)->items = NULL;
 
-	free(node);
-	node = NULL;
+	free(*node);
+	*node = NULL;
 }
 
 
@@ -142,7 +142,7 @@ void node_tree_split_child(
 
 	/* `z` should be a branching node if `y` is */
 	if (!node_leaf(y)) {
-		node_transition(z, t, elem_size);
+		node_transition(z, t);
 	}
 
 	z->n = t - 1;
@@ -223,7 +223,7 @@ void node_child_merge(
 
 	/* Move children from z to y */
 	for (j = 0; j < z->c; j++) {
-		y->children[j+y->c] = z->children[j];
+		y->children[y->c + j] = z->children[j];
 	}
 	y->c += z->c;
 
@@ -251,7 +251,6 @@ void node_shift_left(
 	struct node* y = x->children[i  ];
 	struct node* z = x->children[i+1];
 	byte *x_k = x->items + (elem_size * i);
-	ssize_t j = 0;
 
 	/* Append x.k[i] to y */
 	memcpy(y->items + (elem_size * y->n++),
@@ -269,6 +268,7 @@ void node_shift_left(
 	        elem_size * (z->n - 1));
 
 	if (!node_leaf(z)) {
+		ssize_t j;
 		/* append first child of z to y */
 		y->children[y->c++] = z->children[0];
 
@@ -289,7 +289,6 @@ void node_shift_right(
 	struct node* y = x->children[i  ];
 	struct node* z = x->children[i+1];
 	byte *x_k = x->items + (elem_size * i);
-	long unsigned j = 0;
 
 	/* Shift z's items right */
 	memmove(z->items + elem_size,
@@ -307,6 +306,7 @@ void node_shift_right(
 	       elem_size);
 
 	if (!node_leaf(z)) {
+		size_t j;
 		/* Shift z's children right */
 		for (j = z->c; j > 0; j--) {
 			z->children[j] = z->children[j-1];
@@ -377,7 +377,11 @@ struct node* node_insert(
 
 	if (node_full(degree, root)) {
 		s = node_new(degree, elem_size);
-		node_transition(s, degree, elem_size);
+		if (s == NULL) {
+			fputs("BTree error: Failed to allocate new node for insertion!\n", stderr);
+			return NULL;
+		}
+		node_transition(s, degree);
 		s->children[s->c++] = root;
 		/* TODO Check if the root has changed */
 		node_tree_split_child(degree, elem_size, s, 0);
@@ -589,15 +593,27 @@ struct btree* btree_new_with_allocator(size_t elem_size,
 	return new_tree;
 }
 
-void btree_free(struct btree *btree) {
-	node_free(btree->root, btree->elem_size, btree->dealloc);
-	free(btree);
-	btree = NULL;
+void btree_free(struct btree **btree) {
+	node_free(&((*btree)->root), (*btree)->elem_size, (*btree)->dealloc);
+	free(*btree);
+	*btree = NULL;
 }
 
 void btree_insert(struct btree *btree, void *elem) {
+	if (btree == NULL) {
+		fputs("Warning: Inserting into a NULL ptr!\n", stderr);
+		return;
+	}
+	if (elem == NULL) {
+		fputs("Warning: Inserting NULL into a tree!\n", stderr);
+		return;
+	}
 	if (btree->root == NULL) {
 		btree->root = node_new(btree->degree, btree->elem_size);
+		if (btree->root == NULL) {
+			fputs("BTree error: Failed to create new root node!\n", stderr);
+			return;
+		}
 		node_insert(btree->root,
 		            elem,
 		            btree->degree,
@@ -755,21 +771,23 @@ void btree_iter_t_reset(struct btree *tree, struct btree_iter_t** it) {
 
 void* btree_iter(struct btree *tree, struct btree_iter_t *iter) {
 	register int     pos;
-	register ssize_t head;
 	register ssize_t n;
+	register ssize_t head = 0;
+
+	if (iter->stack[head].node == NULL) return NULL;
 
 	head = iter->head;
 	pos  = iter->stack[head].pos;
 	n    = iter->stack[head].node->n;
 
 #define BTREE_ITER_POP(it) {         \
-	iter->stack[head].pos  = 0;      \
-	iter->stack[head].node = NULL;   \
-	iter->head--; head--;            \
-	iter->stack[head].pos++;         \
-	                                 \
-	pos = iter->stack[head].pos;     \
-	n   = iter->stack[head].node->n; \
+    iter->stack[head].pos  = 0;      \
+    iter->stack[head].node = NULL;   \
+    iter->head--; head--;            \
+    iter->stack[head].pos++;         \
+                                     \
+    pos = iter->stack[head].pos;     \
+    n   = iter->stack[head].node->n; \
 }
 
 	/* Check if we have reached the end of a node.
@@ -798,23 +816,16 @@ void* btree_iter(struct btree *tree, struct btree_iter_t *iter) {
 	/* On evens, we decent into children */
 	if (!node_leaf(iter->stack[head].node)) {
 		if (pos % 2 == 0) {
-			{ /* push child node onto iter->stack */
-				iter->stack[head + 1].pos  = 0;
-				iter->stack[head + 1].node = iter->stack[head].node->children[pos / 2];
-				iter->head++; head++;
-
-				pos  = iter->stack[head].pos;
-				n    = iter->stack[head].node->n;
-			}
+			/* push child node onto iter->stack */
+			iter->stack[head + 1].pos  = 0;
+			iter->stack[head + 1].node = iter->stack[head].node->children[pos / 2];
+			iter->head++; head++;
 
 			/* Decent all the way to the left, if pos == 0 */
 			while (!node_leaf(iter->stack[iter->head].node)) {
 				iter->stack[head + 1].pos  = 0;
 				iter->stack[head + 1].node = iter->stack[head].node->children[0];
 				iter->head++; head++;
-
-				pos  = iter->stack[head].pos;
-				n    = iter->stack[head].node->n;
 			}
 		}
 	}
@@ -822,15 +833,12 @@ void* btree_iter(struct btree *tree, struct btree_iter_t *iter) {
 	/* Finally, update index and return a value */
 	if (node_leaf(iter->stack[head].node)) {
 		iter->stack[head].pos += 2;
-		pos  = iter->stack[head].pos;
+		pos = iter->stack[head].pos;
 	}
 	else {
 		iter->stack[head].pos++;
-		pos  = iter->stack[head].pos;
+		pos = iter->stack[head].pos;
 	}
 
-	return iter->stack[head].node->items
-		 + tree->elem_size * ( (pos - 1) / 2 );
-
-	return NULL;
+	return iter->stack[head].node->items + tree->elem_size * ( (pos - 1) / 2 );
 }
