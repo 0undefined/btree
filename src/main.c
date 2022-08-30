@@ -106,7 +106,7 @@ int main() {
 	btree_insert((struct btree*)tree, bp);
 	btree_print(tree, &userprint);
 
-	btree_free(tree);
+	btree_free(&tree);
 
 	return 0;
 }
