@@ -6,7 +6,7 @@ LIB_OUT    = libbtree.so
 SRC   :=$(wildcard src/*.c)
 OBJ   :=$(addprefix obj/,$(notdir $(SRC:.c=.o)))
 
-.PHONY: clean
+.PHONY: clean check
 
 test: debug
 	./$(OUT)
@@ -33,6 +33,9 @@ obj/%.o: src/%.c src/btree.h obj
 
 obj:
 	mkdir -p $@
+
+check:
+	cppcheck --enable=all --suppress=unusedFunction src
 
 clean:
 	rm -rf $(OUT) obj
