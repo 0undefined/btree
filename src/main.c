@@ -86,7 +86,7 @@ int main() {
 		free(it);
 	}
 
-	btree_free(tree);
+	btree_free(&tree);
 
 	return !(counter == 49);
 }
