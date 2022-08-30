@@ -765,13 +765,13 @@ void* btree_iter(struct btree *tree, struct btree_iter_t *iter) {
 	n    = iter->stack[head].node->n;
 
 #define BTREE_ITER_POP(it) {         \
-	iter->stack[head].pos  = 0;      \
-	iter->stack[head].node = NULL;   \
-	iter->head--; head--;            \
-	iter->stack[head].pos++;         \
-	                                 \
-	pos = iter->stack[head].pos;     \
-	n   = iter->stack[head].node->n; \
+    iter->stack[head].pos  = 0;      \
+    iter->stack[head].node = NULL;   \
+    iter->head--; head--;            \
+    iter->stack[head].pos++;         \
+                                     \
+    pos = iter->stack[head].pos;     \
+    n   = iter->stack[head].node->n; \
 }
 
 	/* Check if we have reached the end of a node.
