@@ -110,13 +110,13 @@ void node_free(struct node **node, size_t elem_size, void (*dealloc)(void*)) {
 		for (i = 0; i < (*node)->c; i++) {
 			node_free(&((*node)->children[i]), elem_size, dealloc);
 		}
-		free((*node)->children);
+		dealloc((*node)->children);
 	}
 
 	dealloc((*node)->items);
 	(*node)->items = NULL;
 
-	free(*node);
+	dealloc(*node);
 	*node = NULL;
 }
 
@@ -205,7 +205,7 @@ void node_tree_split_child(
 void node_child_merge(
 		struct node *x,
 		ssize_t i,
-		const size_t elem_size) {
+		const size_t elem_size, void (*dealloc)(void*)) {
 	struct node* y = x->children[i  ];
 	struct node* z = x->children[i+1];
 	int j = 0;
@@ -240,7 +240,7 @@ void node_child_merge(
 	        elem_size * (x->n - i));
 	x->n--;
 
-	free(z); /* DO NOT USE THE RECURSIVE ONE AS CHILDREN WILL BE LOST!!! */
+	dealloc(z); /* DO NOT USE THE RECURSIVE ONE AS CHILDREN WILL BE LOST!!! */
 }
 
 /* ASSUME i < x->c */
@@ -423,7 +423,7 @@ int node_delete(struct node *x,
                 void *key,
                 int(*cmp)(const void *a, const void *b),
                 const ssize_t degree,
-                const size_t elem_size) {
+                const size_t elem_size, void *(*alloc)(size_t), void (*dealloc)(void*)) {
 	/* Determine wether the key is in the node */
 	int i = 0; /* Index of `k`, if found */
 	int last_cmp_res;
@@ -457,7 +457,7 @@ int node_delete(struct node *x,
 			/* replace k with k' */
 			if (x->children[i]->n >= degree) {
 				struct node* y = x->children[i];
-				byte *kk = malloc(elem_size);
+				byte *kk = alloc(elem_size);
 
 				/* Find the predecessor, k' of k in y */
 				{
@@ -471,20 +471,20 @@ int node_delete(struct node *x,
 				}
 
 				/* Recursively delete kk from y */
-				return node_delete(y, kk, cmp, degree, elem_size);
+				return node_delete(y, kk, cmp, degree, elem_size, alloc, dealloc);
 
 				/* replace k with kk */
 				memcpy(x->items  + (elem_size * i),
 				       kk,
 				       elem_size);
 
-				free(kk);
+				dealloc(kk);
 
 				return 1;
 
 			} else if (x->children[i+1]->n >= degree) {
 				struct node* z = x->children[i+1];
-				byte *kk = malloc(elem_size);
+				byte *kk = alloc(elem_size);
 
 				/* Find the successor, k' of k in z */
 				{
@@ -498,22 +498,22 @@ int node_delete(struct node *x,
 				}
 
 				/* Recursively delete kk from y */
-				return node_delete(z, kk, cmp, degree, elem_size);
+				return node_delete(z, kk, cmp, degree, elem_size, alloc, dealloc);
 
 				/* replace k with kk */
 				memcpy(x->items + (elem_size * i),
 				       kk,
 				       elem_size);
 
-				free(kk);
+				dealloc(kk);
 
 				return 1;
 			} else {
 				/* Merge k and z into y */
-				node_child_merge(x, i, elem_size);
+				node_child_merge(x, i, elem_size, dealloc);
 
 				/* recurse */
-				return node_delete(x->children[i], key, cmp, degree, elem_size);
+				return node_delete(x->children[i], key, cmp, degree, elem_size, alloc, dealloc);
 			}
 		}
 	} else if (node_leaf(x)) {
@@ -546,11 +546,11 @@ int node_delete(struct node *x,
 			} else {
 				/* We need to determine wether we merge left or right, if possible */
 				if (ii > 0)             {
-					node_child_merge(x, ii - 1, elem_size);
+					node_child_merge(x, ii - 1, elem_size, dealloc);
 					y = x->children[ii - 1];
 				}
 				else if (ii < x->c - 1) {
-					node_child_merge(x, ii,     elem_size);
+					node_child_merge(x, ii,     elem_size, dealloc);
 				}
 				else {
 					perror("Cannot merge!");
@@ -559,7 +559,7 @@ int node_delete(struct node *x,
 
 		}
 
-		return node_delete(y, key, cmp, degree, elem_size);
+		return node_delete(y, key, cmp, degree, elem_size, alloc, dealloc);
 	}
 	return 0;
 }
@@ -579,7 +579,7 @@ struct btree* btree_new_with_allocator(size_t elem_size,
                         int(*cmp)(const void *a, const void *b),
                         void *(*alloc)(size_t),
                         void (*dealloc)(void*)) {
-	struct btree *new_tree = malloc(sizeof(struct btree));
+	struct btree *new_tree = alloc(sizeof(struct btree));
 
 	new_tree->alloc     = alloc;
 	new_tree->dealloc   = dealloc;
@@ -596,7 +596,7 @@ struct btree* btree_new_with_allocator(size_t elem_size,
 
 void btree_free(struct btree **btree) {
 	node_free(&((*btree)->root), (*btree)->elem_size, (*btree)->dealloc);
-	free(*btree);
+	(*btree)->dealloc(*btree);
 	*btree = NULL;
 }
 
@@ -636,11 +636,11 @@ void* btree_search(struct btree *btree, void *elem) {
 
 int btree_delete(struct btree *btree, void *elem) {
 	struct node *newroot = btree->root;
-	int res = node_delete(btree->root, elem, btree->cmp, btree->degree, btree->elem_size);
+	int res = node_delete(btree->root, elem, btree->cmp, btree->degree, btree->elem_size, btree->alloc, btree->dealloc);
 	if (newroot->n == 0) {
 		/* shrink the tree */
 		struct node *newroot_p = newroot->children[0];
-		free(newroot);
+		btree->dealloc(newroot);
 		btree->root = newroot_p;
 	}
 	return res;
@@ -747,7 +747,10 @@ size_t btree_size(struct btree *btree) {
 
 struct btree_iter_t* btree_iter_t_new(struct btree *tree) {
 	struct btree_iter_t *iter = NULL;
-	iter = (struct btree_iter_t*)malloc(sizeof(struct btree_iter_t));
+
+	if (tree == NULL) return NULL;
+
+	iter = (struct btree_iter_t*)tree->alloc(sizeof(struct btree_iter_t));
 
 	if (tree != NULL) {
 		iter->head = 0;
@@ -771,9 +774,9 @@ void btree_iter_t_reset(struct btree *tree, struct btree_iter_t** it) {
 
 
 void* btree_iter(struct btree *tree, struct btree_iter_t *iter) {
-	register int     pos;
-	register ssize_t n;
+	register int     pos  = 0;
 	register ssize_t head = 0;
+	register ssize_t n    = 0;
 
 	if (iter->stack[head].node == NULL) return NULL;
 
