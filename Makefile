@@ -2,7 +2,8 @@ CC     = gcc
 LFLAGS =
 FLAGS  = -ansi -Wall -Wextra -pedantic
 OUT    = btree-test
-LIB_OUT    = libbtree.so
+SHARED_OUT = libbtree.so
+STATIC_OUT = libbtree.a
 SRC   :=$(wildcard src/*.c)
 OBJ   :=$(addprefix obj/,$(notdir $(SRC:.c=.o)))
 
@@ -19,11 +20,17 @@ debug: obj build
 
 build: $(OUT)
 
-lib: DEFS += -fpic
-lib: $(LIB_OUT)
+static: FLAGS += -fpic
+static: $(STATIC_OUT)
 
-$(LIB_OUT): $(OBJ)
-	$(CC) $(DEFS) $(FLAGS) $(LFLAGS) -shared -o $(LIB_OUT) $(OBJ)
+shared: FLAGS += -fpic
+shared: $(SHARED_OUT)
+
+$(SHARED_OUT): $(OBJ)
+	$(CC) $(DEFS) $(FLAGS) $(LFLAGS) -shared -o $(SHARED_OUT) $(OBJ)
+
+$(STATIC_OUT): $(OBJ)
+	ar -rcs -o $(STATIC_OUT) $(OBJ)
 
 $(OUT): $(OBJ)
 	$(CC) $(DEFS) $(FLAGS) $(LFLAGS) -o $(OUT) $(OBJ)
