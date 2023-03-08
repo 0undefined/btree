@@ -638,6 +638,7 @@ int btree_delete(struct btree *btree, void *elem) {
 	struct node *newroot = btree->root;
 	int res = node_delete(btree->root, elem, btree->cmp, btree->degree, btree->elem_size, btree->alloc, btree->dealloc);
 	if (newroot->n == 0) {
+		if (node_leaf(newroot)) return res;
 		/* shrink the tree */
 		struct node *newroot_p = newroot->children[0];
 		btree->dealloc(newroot);
@@ -683,6 +684,7 @@ void node_print(struct node *root, const size_t elem_size, const int indent, voi
 
 void btree_print(struct btree *btree, void (*print_elem)(const void*)) {
 	printf("BTRee: degree:%ld\n", btree->degree);
+	if (btree->root == NULL) return;
 	node_print(btree->root, btree->elem_size, 0, print_elem);
 }
 
@@ -752,7 +754,7 @@ struct btree_iter_t* btree_iter_t_new(struct btree *tree) {
 
 	iter = (struct btree_iter_t*)tree->alloc(sizeof(struct btree_iter_t));
 
-	if (tree != NULL) {
+	if (iter != NULL) {
 		iter->head = 0;
 		memset(iter->stack, 0, 512 * sizeof(struct node*));
 
